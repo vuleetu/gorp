@@ -159,6 +159,7 @@ type DbMap struct {
 	tables    []*TableMap
 	logger    GorpLogger
 	logPrefix string
+    convertColumn2Lower bool
 }
 
 // TableMap represents a mapping between a Go struct and a database table
@@ -709,19 +710,24 @@ func (m *DbMap) AddTableWithNameAndSchema(i interface{}, schema string, name str
 	}
 
 	tmap := &TableMap{gotype: t, TableName: name, SchemaName: schema, dbmap: m}
-	tmap.Columns, tmap.version = readStructColumns(t)
+	tmap.Columns, tmap.version = readStructColumns(t, m.convertColumn2Lower)
 	m.tables = append(m.tables, tmap)
 
 	return tmap
 }
 
-func readStructColumns(t reflect.Type) (cols []*ColumnMap, version *ColumnMap) {
+func (m *DbMap) ColumnNameCase(isLower bool) *DbMap {
+    m.convertColumn2Lower = isLower
+    return m
+}
+
+func readStructColumns(t reflect.Type, columnName2Lower bool) (cols []*ColumnMap, version *ColumnMap) {
 	n := t.NumField()
 	for i := 0; i < n; i++ {
 		f := t.Field(i)
 		if f.Anonymous && f.Type.Kind() == reflect.Struct {
 			// Recursively add nested fields in embedded structs.
-			subcols, subversion := readStructColumns(f.Type)
+			subcols, subversion := readStructColumns(f.Type, columnName2Lower)
 			// Don't append nested fields that have the same field
 			// name as an already-mapped field.
 			for _, subcol := range subcols {
@@ -744,6 +750,11 @@ func readStructColumns(t reflect.Type) (cols []*ColumnMap, version *ColumnMap) {
 			if columnName == "" {
 				columnName = f.Name
 			}
+
+            if columnName2Lower {
+                columnName = strings.ToLower(columnName)
+            }
+
 			cm := &ColumnMap{
 				ColumnName: columnName,
 				Transient:  columnName == "-",
