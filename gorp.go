@@ -980,6 +980,25 @@ func (m *DbMap) Update(list ...interface{}) (int64, error) {
 	return update(m, m, list...)
 }
 
+func (m *DbMap) Upsert(list ...interface{}) error {
+    n, err := m.Update(list...)
+    if err != nil {
+        return err
+    }
+
+    if n > 0 {
+        return nil
+    }
+
+    return m.Insert(list...)
+}
+
+//func (m *DbMap) UpdateWhere(table string, where map[string]interface{}, list interface{}) (int64, error) {
+
+    //m.
+	//return update(m, m, list...)
+//}
+
 // Delete runs a SQL DELETE statement for each element in list.  List
 // items must be pointers.
 //
